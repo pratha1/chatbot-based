@@ -1,73 +1,440 @@
-import sys
 import tkinter as tk
-import pafy
+from tkinter import scrolledtext
+import speech_recognition as sr
+import pyttsx3
+import webbrowser
+from datetime import datetime
+import threading
+import random
+import requests
 import os
-from pydub import AudioSegment
+from PIL import Image, ImageTk
+from io import BytesIO
 
+class AggieAssistant:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("AggieAssistant")
+        self.root.geometry("600x750")
+        self.root.configure(bg='#4a1e1e')
+        
+        # Initialize speech components
+        try:
+            self.recognizer = sr.Recognizer()
+            self.engine = pyttsx3.init()
+            self.engine.setProperty('rate', 150)
+            self.engine.setProperty('volume', 1.0)
+            
+            # Test speech engine
+            voices = self.engine.getProperty('voices')
+            if voices:
+                self.engine.setProperty('voice', voices[0].id)
+            
+            print("✅ Speech engine initialized successfully")
+        except Exception as e:
+            print(f"❌ Speech engine error: {e}")
+            self.engine = None
+        
+        # Hugging Face API setup 
+        self.hf_token = "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"
+        self.api_url = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-3B-Instruct"
+        
+        # UI Setup
+        self.setup_ui()
+        
+        # Conversation history
+        self.conversation_history = []
+        
+        # Fallback knowledge base (if API fails)
+        self.knowledge_base = {
+            'time': f"The current time is {datetime.now().strftime('%I:%M %p')}",
+            'date': f"Today is {datetime.now().strftime('%B %d, %Y')}",
+            'tamu': "Texas A&M University was founded in 1876 in College Station, Texas. Gig 'em Aggies!",
+            'hello': "Howdy! How can I help you today?",
+            'joke': "Why did the Aggie bring a ladder to class? To reach higher education!"
+        }
+        
+        # Initial greeting
+        self.log_output("Welcome to AggieAssistant! Click a button to start.")
+        
+    def setup_ui(self):
+        # Header
+        header = tk.Label(
+            self.root,
+            text="Howdy y'all! I'm your AggieAssistant!",
+            bg='#4a1e1e',
+            fg='white',
+            font=('Arial', 18, 'bold'),
+            pady=20
+        )
+        header.pack(fill=tk.X)
+        
+        # Question prompt
+        prompt = tk.Label(
+            self.root,
+            text="What can I do for you today?",
+            bg='#4a1e1e',
+            fg='white',
+            font=('Arial', 12)
+        )
+        prompt.pack(pady=10)
+        
+        # Button frame
+        button_frame = tk.Frame(self.root, bg='#4a1e1e')
+        button_frame.pack(pady=20)
+        
+        # Buttons with better styling
+        self.website_btn = tk.Button(
+            button_frame,
+            text="Open Website",
+            command=self.open_website,
+            width=15,
+            height=2,
+            font=('Arial', 10, 'bold'),
+            bg='#500000',
+            fg='white',
+            cursor='hand2'
+        )
+        self.website_btn.grid(row=0, column=0, padx=10)
+        
+        self.question_btn = tk.Button(
+            button_frame,
+            text="Ask A Question",
+            command=self.ask_question,
+            width=15,
+            height=2,
+            font=('Arial', 10, 'bold'),
+            bg='#500000',
+            fg='white',
+            cursor='hand2'
+        )
+        self.question_btn.grid(row=0, column=1, padx=10)
+        
+        self.repeat_btn = tk.Button(
+            button_frame,
+            text="Repeat the Phrase",
+            command=self.repeat_phrase,
+            width=15,
+            height=2,
+            font=('Arial', 10, 'bold'),
+            bg='#500000',
+            fg='white',
+            cursor='hand2'
+        )
+        self.repeat_btn.grid(row=0, column=2, padx=10)
+        
+        # Output display area
+        self.output_area = scrolledtext.ScrolledText(
+            self.root,
+            wrap=tk.WORD,
+            width=70,
+            height=12,
+            font=('Arial', 10),
+            bg='#f5f5f5'
+        )
+        self.output_area.pack(pady=20, padx=20)
+        
+        # Status label
+        status_text = "🆓 FREE AI Mode - Ready!" if self.hf_token else "Ready! (Set HF_TOKEN for AI)"
+        self.status_label = tk.Label(
+            self.root,
+            text=status_text,
+            bg='#4a1e1e',
+            fg='#90ee90',
+            font=('Arial', 10, 'bold')
+        )
+        self.status_label.pack(pady=10)
+        
+        # Reveille Logo
+        try:
+            # Create logo frame
+            logo_frame = tk.Frame(self.root, bg='#4a1e1e')
+            logo_frame.pack(pady=10)
+            
+            # Load the Reveille image from URL
+            image_path = r"C:\Users\prath\OneDrive\Desktop\projects\chatbot-based\rev.png"
+            image_data = Image.open(image_path)
 
-def downloadSound(videourl):
+            # Resize image to fit
+            image_data = image_data.resize((150, 150), Image.Resampling.LANCZOS)
+            
+            # Convert to PhotoImage
+            self.logo_image = ImageTk.PhotoImage(image_data)
+            
+            logo_label = tk.Label(
+                logo_frame,
+                image=self.logo_image,
+                bg='#4a1e1e'
+            )
+            logo_label.pack()
+        except Exception as e:
+            print(f"Could not load logo: {e}")
+            # Fallback to text
+            logo_label = tk.Label(
+                self.root,
+                text="🐕 REVEILLE",
+                font=('Arial', 40, 'bold'),
+                bg='#4a1e1e',
+                fg='#500000'
+            )
+            logo_label.pack(pady=10)
+    
+    def log_output(self, message):
+        """Add message to output area"""
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        self.output_area.insert(tk.END, f"[{timestamp}] {message}\n")
+        self.output_area.see(tk.END)
+        self.root.update()
+    
+    def speak(self, text):
+        def run_tts():
+            try:
+                if self.engine:
+                    self.engine.say(text)
+                    self.engine.runAndWait()
+            except Exception as e:
+                print(f"TTS Error: {e}")
 
-    url = str(videourl)
-    video = pafy.new(url) 
+        threading.Thread(target=run_tts, daemon=True).start()
 
-    bestaudio = video.getbestaudio() 
-    print(video.title, video.author, video.length)
-    bestaudio.download() 
+    def listen(self):
+        """Listen for voice input"""
+        self.status_label.config(text="🎤 Listening...", fg='yellow')
+        self.root.update()
+        
+        try:
+            print("Starting to listen...")
+            with sr.Microphone() as source:
+                self.log_output("🎤 Listening... (speak now)")
+                print("Adjusting for ambient noise...")
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                print("Listening for speech...")
+                audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=10)
+                
+            print("Processing speech...")
+            self.status_label.config(text="✓ Processing...", fg='#90ee90')
+            self.root.update()
+            
+            text = self.recognizer.recognize_google(audio)
+            print(f"Recognized: {text}")
+            self.status_label.config(text="✓ Got it!", fg='#90ee90')
+            return text
+            
+        except sr.WaitTimeoutError:
+            print("Timeout - no speech detected")
+            self.status_label.config(text="⚠ No speech detected", fg='orange')
+            self.log_output("⚠ No speech detected. Please try again.")
+            return None
+        except sr.UnknownValueError:
+            print("Could not understand audio")
+            self.status_label.config(text="⚠ Could not understand", fg='orange')
+            self.log_output("⚠ Could not understand. Please speak clearly.")
+            return None
+        except Exception as e:
+            print(f"Error: {e}")
+            self.status_label.config(text=f"⚠ Error", fg='red')
+            self.log_output(f"⚠ Error: {str(e)}")
+            return None
+    
+    def query_huggingface_api(self, question):
+        """Query Hugging Face Inference API"""
+        headers = {"Authorization": f"Bearer {self.hf_token}"}
+        
+        prompt = f"""You are AggieAssistant, a helpful AI for Texas A&M University students. 
+Be concise (2-3 sentences max), friendly, and use "Howdy" occasionally.
 
-def linklister(linklist):
+User question: {question}
 
-    f = open('links.txt','r')
+Answer:"""
+        
+        payload = {
+            "inputs": prompt,
+            "parameters": {
+                "max_new_tokens": 150,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "return_full_text": False
+            }
+        }
+        
+        try:
+            print("Querying Hugging Face API...")
+            response = requests.post(self.api_url, headers=headers, json=payload, timeout=15)
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"API Response: {result}")
+                if isinstance(result, list) and len(result) > 0:
+                    answer = result[0].get('generated_text', '').strip()
+                    return answer if answer else None
+                elif isinstance(result, dict):
+                    return result.get('generated_text', '').strip()
+            else:
+                print(f"API Error: {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            print(f"API Error: {e}")
+            return None
+    
+    def get_fallback_response(self, question):
+        """Fallback to pattern matching if API fails"""
+        question_lower = question.lower()
+        
+        # Check knowledge base
+        for key, response in self.knowledge_base.items():
+            if key in question_lower:
+                return response
+        
+        # Time/date responses
+        if 'time' in question_lower:
+            return f"The current time is {datetime.now().strftime('%I:%M %p')}"
+        if 'date' in question_lower or 'day' in question_lower:
+            return f"Today is {datetime.now().strftime('%A, %B %d, %Y')}"
+        
+        # Default responses
+        defaults = [
+            "I don't have specific information about that, but I'm here to help with TAMU questions!",
+            "That's interesting! Try asking me about Texas A&M, the time, or tell me to open a website.",
+            f"I'm not sure about that, but I can tell you it's {datetime.now().strftime('%I:%M %p')} right now!"
+        ]
+        return random.choice(defaults)
+    
+    def get_ai_response(self, question):
+        """Get response from AI (tries API first, falls back to patterns)"""
+        if self.hf_token:
+            self.log_output("🤖 Asking AI...")
+            ai_response = self.query_huggingface_api(question)
+            if ai_response:
+                return ai_response
+            else:
+                self.log_output("⚠ API unavailable, using fallback...")
+        
+        return self.get_fallback_response(question)
+    
+    def open_website(self):
+        """Voice command to open websites"""
+        def task():
+            try:
+                self.log_output("=== OPEN WEBSITE MODE ===")
+                self.log_output("Say a website name (e.g., 'Google', 'YouTube', 'TAMU')")
+                self.speak("What website would you like to open?")
+                
+                command = self.listen()
+                if command:
+                    self.log_output(f"You said: {command}")
+                    command_lower = command.lower()
+                    
+                    websites = {
+                        'google': 'https://www.google.com',
+                        'youtube': 'https://www.youtube.com',
+                        'tamu': 'https://www.tamu.edu',
+                        'texas a&m': 'https://www.tamu.edu',
+                        'texas am': 'https://www.tamu.edu',
+                        'howdy': 'https://howdy.tamu.edu',
+                        'canvas': 'https://canvas.tamu.edu',
+                        'github': 'https://www.github.com',
+                        'facebook': 'https://www.facebook.com',
+                        'twitter': 'https://www.twitter.com',
+                        'x': 'https://www.twitter.com',
+                        'linkedin': 'https://www.linkedin.com',
+                        'reddit': 'https://www.reddit.com',
+                        'gmail': 'https://mail.google.com'
+                    }
+                    
+                    opened = False
+                    for key, url in websites.items():
+                        if key in command_lower:
+                            self.log_output(f"✓ Opening {key.title()}...")
+                            webbrowser.open(url)
+                            self.speak(f"Opening {key}")
+                            opened = True
+                            break
+                    
+                    if not opened:
+                        search_url = f"https://www.google.com/search?q={command}"
+                        self.log_output(f"✓ Searching for: {command}")
+                        webbrowser.open(search_url)
+                        self.speak(f"Searching for {command}")
+                else:
+                    self.log_output("No command heard. Try again.")
+                
+                self.status_label.config(text="Ready to assist!", fg='#90ee90')
+            except Exception as e:
+                self.log_output(f"Error in open_website: {e}")
+                print(f"Error: {e}")
+        
+        # Run in thread to prevent GUI freezing
+        threading.Thread(target=task, daemon=True).start()
+    
+    def ask_question(self):
+        """Answer questions using AI API"""
+        def task():
+            try:
+                self.log_output("=== ASK QUESTION MODE ===")
+                self.log_output("Ask your question now...")
+                self.speak("What's your question?")
+                
+                question = self.listen()
+                if question:
+                    self.log_output(f"Question: {question}")
+                    self.speak("Let me think about that")
+                    
+                    # Get AI response
+                    answer = self.get_ai_response(question)
+                    
+                    # Store in history
+                    self.conversation_history.append({
+                        'question': question,
+                        'answer': answer,
+                        'time': datetime.now()
+                    })
+                    
+                    self.log_output(f"Answer: {answer}")
+                    self.speak(answer)
+                else:
+                    self.log_output("No question heard. Try again.")
+                
+                self.status_label.config(text="Ready to assist!", fg='#90ee90')
+            except Exception as e:
+                self.log_output(f"Error in ask_question: {e}")
+                print(f"Error: {e}")
+        
+        threading.Thread(target=task, daemon=True).start()
+    
+    def repeat_phrase(self):
+        """Listen and repeat what user says"""
+        def task():
+            try:
+                self.log_output("=== REPEAT PHRASE MODE ===")
+                self.log_output("Say something for me to repeat...")
+                self.speak("Say something and I'll repeat it")
+                
+                phrase = self.listen()
+                if phrase:
+                    self.log_output(f"You said: {phrase}")
+                    self.log_output(f"Repeating: {phrase}")
+                    threading.Thread(
+                        target=lambda: self.speak(f"You said: {phrase}"),
+                        daemon=True
+                        ).start()
+                else:
+                    self.log_output("No phrase heard. Try again.")
+                
+                self.status_label.config(text="Ready to assist!", fg='#90ee90')
+            except Exception as e:
+                self.log_output(f"Error in repeat_phrase: {e}")
+                print(f"Error: {e}")
+        
+        threading.Thread(target=task, daemon=True).start()
 
-    for line in f:
-        linklist.append(line.strip())
-
-    f.close()    
-
-def converter():
-    dirlist = os.listdir()
-
-    songlist = []
-
-    for i in dirlist:
-        if ".webm" in i:
-            songlist.append(i)
-
-    for i in songlist:
-
-        sound = AudioSegment.from_file(i)
-
-        imp3 = i.replace(".webm", ".mp3") 
-
-        sound.export(imp3, format="mp3", bitrate="192k")
-
-        print (i, "DONE")
 
 def main():
-    ytlinks = []
-
-    linklister(ytlinks)
-
-    for i in ytlinks:
-        downloadSound(i)
-
-    print ("downlad complete, proceeding to conversion")
-
-
-
-
-class TextOut(tk.Text):
-
-    def write(self, s):
-        self.insert(tk.CURRENT, s)
-
-    def flush(self):
-        pass
+    print("=== Starting AggieAssistant ===")
+    root = tk.Tk()
+    app = AggieAssistant(root)
+    print("=== GUI Started - Click buttons to interact ===")
+    root.mainloop()
 
 
 if __name__ == '__main__':
-    root = tk.Tk()
-    text = TextOut(root)
-    sys.stdout = text
-    text.pack(expand=True, fill=tk.BOTH)
-    main()#here
-    root.mainloop()
+    main()
