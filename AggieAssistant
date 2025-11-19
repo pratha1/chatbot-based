@@ -36,7 +36,7 @@ class AggieAssistant:
             self.engine = None
         
         # Hugging Face API setup 
-        self.hf_token = "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"
+        self.hf_token = "hiden token"
         self.api_url = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-3B-Instruct"
         
         # UI Setup
