@@ -1,0 +1,102 @@
+# AggieAssistant 🐾
+
+AggieAssistant is a Python-based AI virtual assistant designed for Texas A&M University students. It combines voice interaction, AI-powered responses, and quick access to university resources in a user-friendly GUI.
+
+---
+
+## Features
+
+- **🗣 Voice Commands & Text-to-Speech**  
+  Interact naturally using your voice. The assistant responds using `pyttsx3`.
+
+- **❓ Ask Questions**  
+  Ask about TAMU or general queries. Uses Hugging Face LLaMA-3 API for AI answers, with a fallback knowledge base.
+
+- **🌐 Open Websites**  
+  Quickly access popular sites like Google, YouTube, TAMU, Howdy, Canvas, and more via voice commands.
+
+- **🔁 Repeat Phrase**  
+  Repeat anything you say using the assistant’s voice.
+
+- **📝 Conversation Logging**  
+  Tracks all interactions in a scrollable GUI display for easy reference.
+
+- **🎨 GUI with Logo**  
+  Built with `tkinter` and displays the Reveille logo.
+
+---
+
+## Technologies & Libraries
+
+- **Python 3.11+**
+- GUI: `tkinter` + `tkinter.scrolledtext`
+- Image Handling: `Pillow (PIL)`
+- Speech Recognition: `speech_recognition`
+- Text-to-Speech: `pyttsx3`
+- HTTP Requests: `requests`
+- Threading for non-blocking UI
+- Hugging Face API integration for AI responses
+
+---
+
+## Installation
+
+1. **Clone the repository:**
+
+```bash
+git clone https://github.com/yourusername/AggieAssistant.git
+cd AggieAssistant
+Install dependencies:
+
+2. Install dependencies:
+pip install -r requirements.txt
+
+
+requirements.txt example:
+tk
+pillow
+speechrecognition
+pyttsx3
+requests
+
+Usage
+
+Run the assistant:
+
+python AggieAssistant.py
+
+
+The GUI will launch with a welcome message and the Reveille logo.
+
+Click buttons to interact:
+
+Open Website: Voice-command to open popular sites.
+
+Ask A Question: Ask AI or fallback questions.
+
+Repeat the Phrase: Speak something, and the assistant will repeat it.
+
+Note: Make sure your microphone is enabled and working.
+
+Configuration
+
+Hugging Face API (optional)
+Set your API token to enable AI responses:
+
+self.hf_token = "YOUR_HUGGING_FACE_TOKEN"
+
+
+Voice Settings:
+Adjust speech rate and volume:
+
+self.engine.setProperty('rate', 150)
+self.engine.setProperty('volume', 1.0)
+
+
+Notes
+
+Audio output works best with TTS in separate threads to avoid conflicts with the microphone input.
+
+Designed for Texas A&M University students, but adaptable for general use.
+
+GUI operations are threaded for responsiveness.
