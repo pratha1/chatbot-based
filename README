@@ -3,7 +3,7 @@ AggieAssistant is a Python-based AI virtual assistant designed for Texas A&M Uni
 
 Features
 🗣 Voice Commands & Text-to-Speech
-  Interact naturally using your voice. The assistant responds using `pyttsx3`.
+  Interact naturally using your voice. The assistant responds using pyttsx3.
 
 ❓ Ask Questions
   Ask about TAMU or general queries. Uses Hugging Face LLaMA-3 API for AI answers, with a fallback knowledge base.
@@ -18,7 +18,7 @@ Features
   Tracks all interactions in a scrollable GUI display for easy reference.
 
 🎨 GUI with Logo 
-  Built with `tkinter` and displays the Reveille logo.
+  Built with tkinter and displays the Reveille logo.
 
 
 Technologies & Libraries
@@ -34,7 +34,6 @@ Technologies & Libraries
 
 Installation
 1. Clone the repository:
-```bash
 git clone https://github.com/yourusername/AggieAssistant.git
 cd AggieAssistant
 
